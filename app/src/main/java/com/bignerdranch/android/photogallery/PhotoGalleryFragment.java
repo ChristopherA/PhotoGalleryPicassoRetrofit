@@ -1,16 +1,12 @@
 package com.bignerdranch.android.photogallery;
 
-import java.util.ArrayList;
-
 import android.annotation.TargetApi;
-import android.app.Activity;
 import android.app.SearchManager;
 import android.app.SearchableInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -28,10 +24,38 @@ import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.SearchView;
 
-public class PhotoGalleryFragment extends VisibleFragment {    
+import java.util.List;
+
+import retrofit.Callback;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
+
+public class PhotoGalleryFragment extends VisibleFragment {
     GridView mGridView;
-    ArrayList<GalleryItem> mItems;
+    List<GalleryItem> mItems;
     ThumbnailDownloader mThumbnailThread;
+    private FlickrService mFlickrService;
+    private Callback<FlickrService.FlickrResponse> mFlickrResponseCallback = new Callback<FlickrService.FlickrResponse>() {
+        @Override
+        public void success(FlickrService.FlickrResponse flickrResponse, Response response) {
+            mItems = flickrResponse.getPhotos();
+
+            if (mItems.size() > 0) {
+                String resultId = mItems.get(0).getId();
+                PreferenceManager.getDefaultSharedPreferences(getActivity())
+                        .edit()
+                        .putString(FlickrFetchr.PREF_LAST_RESULT_ID, resultId)
+                        .commit();
+            }
+
+            setupAdapter();
+        }
+
+        @Override
+        public void failure(RetrofitError error) {
+
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -40,6 +64,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
         setRetainInstance(true);
         setHasOptionsMenu(true);
 
+        mFlickrService = FlickrService.Factory.create();
         updateItems();
 
         mThumbnailThread = new ThumbnailDownloader(new Handler());
@@ -47,7 +72,13 @@ public class PhotoGalleryFragment extends VisibleFragment {
     }
     
     public void updateItems() {
-        new FetchItemsTask().execute();
+        String query = PreferenceManager.getDefaultSharedPreferences(getActivity())
+                .getString(FlickrFetchr.PREF_SEARCH_QUERY, null);
+        if (query != null) {
+            mFlickrService.search(query, mFlickrResponseCallback);
+        } else {
+            mFlickrService.fetchItems(mFlickrResponseCallback);
+        }
     }
 
     @Override
@@ -157,40 +188,8 @@ public class PhotoGalleryFragment extends VisibleFragment {
         }
     }
 
-    private class FetchItemsTask extends AsyncTask<Void,Void,ArrayList<GalleryItem>> {
-        @Override
-        protected ArrayList<GalleryItem> doInBackground(Void... params) {            
-            Activity activity = getActivity();
-            if (activity == null) 
-                return new ArrayList<GalleryItem>();
-
-            String query = PreferenceManager.getDefaultSharedPreferences(activity)
-                .getString(FlickrFetchr.PREF_SEARCH_QUERY, null);
-            if (query != null) {
-                return new FlickrFetchr().search(query);
-            } else {
-                return new FlickrFetchr().fetchItems();
-            }
-        }
-
-        @Override
-        protected void onPostExecute(ArrayList<GalleryItem> items) {
-            mItems = items;
-
-            if (items.size() > 0) {
-                String resultId = items.get(0).getId();
-                PreferenceManager.getDefaultSharedPreferences(getActivity())
-                    .edit()
-                    .putString(FlickrFetchr.PREF_LAST_RESULT_ID, resultId)
-                    .commit();
-            }
-
-            setupAdapter();
-        }
-    }
-    
     private class GalleryItemAdapter extends ArrayAdapter<GalleryItem> {
-        public GalleryItemAdapter(ArrayList<GalleryItem> items) {
+        public GalleryItemAdapter(List<GalleryItem> items) {
             super(getActivity(), 0, items);
         }
 
