@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -24,6 +23,8 @@ import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.SearchView;
 
+import com.squareup.picasso.Picasso;
+
 import java.util.List;
 
 import retrofit.Callback;
@@ -33,7 +34,6 @@ import retrofit.client.Response;
 public class PhotoGalleryFragment extends VisibleFragment {
     GridView mGridView;
     List<GalleryItem> mItems;
-    ThumbnailDownloader mThumbnailThread;
     private FlickrService mFlickrService;
     private Callback<FlickrService.FlickrResponse> mFlickrResponseCallback = new Callback<FlickrService.FlickrResponse>() {
         @Override
@@ -66,9 +66,6 @@ public class PhotoGalleryFragment extends VisibleFragment {
 
         mFlickrService = FlickrService.Factory.create();
         updateItems();
-
-        mThumbnailThread = new ThumbnailDownloader(new Handler());
-        mThumbnailThread.start();
     }
     
     public void updateItems() {
@@ -106,19 +103,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
         
         return v;
     }
-    
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mThumbnailThread.quit();
-    }
-    
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        mThumbnailThread.clearQueue();
-    }
-    
+
     @Override
     @TargetApi(11)
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
@@ -203,9 +188,11 @@ public class PhotoGalleryFragment extends VisibleFragment {
             GalleryItem item = getItem(position);
             ImageView imageView = (ImageView)convertView
                     .findViewById(R.id.gallery_item_imageView);
-            imageView.setImageResource(R.drawable.brian_up_close);
-            mThumbnailThread.queueThumbnail(imageView, item.getUrl());
-            
+            Picasso.with(getContext())
+                    .load(item.getUrl())
+                    .placeholder(R.drawable.brian_up_close)
+                    .into(imageView);
+
             return convertView;
         }
     }
