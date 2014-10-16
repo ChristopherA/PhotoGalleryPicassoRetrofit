@@ -30,7 +30,7 @@ public interface FlickrService {
         private static final String GET_RECENT = PATH_ROOT + "flickr.photos.getRecent";
         private static final String SEARCH = PATH_ROOT + "flickr.photos.search";
         private static final String PARAM_TEXT = "text";
-        private static final String API_KEY = "XXX";
+        private static final String API_KEY = "41baa5dbced1f1cb39b01d34563e7d49";
     }
 
     public static class FlickrResponse {
